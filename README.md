@@ -21,7 +21,7 @@ You can also save the html file locally and it _should_ work fine.
 
 ### How to use
 
-1. In RetroArch with Paper Mario running and the save file you want to check loaded, open **Quick Menu → Save State** (or press your hotkey).
+1. In RetroArch with Paper Mario running and the save file you want to check loaded, open **Quick Menu → Save State** (or press your save state hotkey).
 2. Find the `.stateN` file in your `states/` folder and upload it to the tool.
 3. The page will show your overall progress, a chapter-by-chapter breakdown of every tracked enemy, and which ones you still need — with notes on missables and special conditions.
 
