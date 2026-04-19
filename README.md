@@ -6,7 +6,7 @@ A tool for checking progress toward the [Encyclopedia](https://retroachievements
 
 - Compatible with the Feb 21, 2026 revision of the achievement
 - Save states only! `.srm` "battery save" files are not supported.
-- You can create save states while RetroAchievements Hardcore Mode is on; you just cannot load them in Hardcore Mode
+- You can create save states while RA Hardcore Mode is on; you just cannot load them in Hardcore Mode
 - Confirmed working with save states from MupenPlusNext on RetroArch. Others probably work but have not been tested. If you have save states from another emulator and want to help test compatibility, feel free to open an issue with emulator details and save states attached.
 
 ---
