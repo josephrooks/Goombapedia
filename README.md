@@ -1,13 +1,13 @@
 # Goombario's Encyclopedia — Paper Mario Tattle Checker
 
-A tool for tracking Goombario tattle progress toward the [Encyclopedia](https://retroachievements.org/achievement/79592) RetroAchievements achievement in Paper Mario (N64).
+A tool for checking progress toward the [Encyclopedia](https://retroachievements.org/achievement/79592) RA achievement in Paper Mario (N64) in detail.
 
 ### Notes
 
 - Compatible with the Feb 21, 2026 revision of the achievement
-- Save states only — `.srm` "battery save" files are not supported (the tattle data only exists in active memory, not in the save file)
+- Save states only! `.srm` "battery save" files are not supported.
 - You can create save states while RetroAchievements Hardcore Mode is on; you just cannot load them in Hardcore Mode
-- Confirmed working with save states from MupenPlusNext on RetroArch; if you have save states from another emulator and want to help test compatibility, feel free to open an issue
+- Confirmed working with save states from MupenPlusNext on RetroArch. Others probably work but have not been tested. If you have save states from another emulator and want to help test compatibility, feel free to open an issue with emulator details and save states attached.
 
 ---
 

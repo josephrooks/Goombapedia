@@ -167,14 +167,12 @@
 
 
   /* Sub-enemy (summoned during fight) */
-  .enemy.sub { padding-left: 2rem; }
   .enemy.sub .enemy-num { color: #5a4030; }
-  .enemy.sub::before {
-    content: '↳';
+  .sub-arrow {
     color: var(--border);
     font-size: 0.8rem;
-    position: absolute;
-    left: 0.75rem;
+    flex-shrink: 0;
+    margin-right: -0.35rem;
   }
 
   /* Legend */
@@ -237,7 +235,7 @@
     width: 1em;
     text-align: center;
   }
-  .info-name { color: var(--text); font-weight: 700; font-size: 0.9rem; }
+  .info-name { color: var(--muted); font-weight: 600; font-size: 0.9rem; }
   .info-text { color: var(--muted); line-height: 1.5; }
   .info-text strong { color: var(--text); font-weight: 700; }
 
@@ -259,16 +257,16 @@
   <div class="instructions">
     <h3>How to use</h3>
     <ol>
-      <li>In RetroArch with Paper Mario running and the save file you want to check loaded, open <strong>Quick Menu → Save State</strong> (or press your hotkey). You can do this even with RetroAchievements Hardcore Mode on; you just cannot <em>load</em> states in Hardcore Mode.</li>
-      <li>Find the <code>.stateN</code> file in your <code>states/</code> folder (e.g. <code>Paper Mario.state1</code>). Note: this tool reads save states only, not <code>.srm</code> save files.</li>
-      <li>Drop it below or click to browse. Your file never leaves your device.</li>
+      <li>In RetroArch with Paper Mario running and the save file you want to check loaded, open <strong>Quick Menu → Save State</strong> (or press your hotkey). You can do this even in RetroAchievements Hardcore Mode; you just cannot <em>load</em> states while Hardcore Mode is on.</li>
+      <li>Find the <code>.stateN</code> file in your <code>states/</code> folder (e.g. <code>Paper Mario.state1</code>) and upload it here. Save states only; <code>.srm</code> battery save files are not supported since the tattle data only exists in active memory, not in the save file itself.</li>
+      <li>The page will show your overall progress, a chapter-by-chapter breakdown of every tracked enemy, and which ones you still need, with notes on missables and special conditions.</li>
     </ol>
   </div>
 
   <div class="drop-zone" id="dropZone">
     <span class="drop-icon">🗂️</span>
     <div class="drop-title">Drop save state here<br>or click to browse</div>
-    <p class="drop-sub">Accepts <code>.stateN</code> files from MupenPlusNext on RetroArch.<br>Other emulators may work but have not been tested.</p>
+    <p class="drop-sub">Accepts <code>.stateN</code> files only; <code>.srm</code> battery save files are not supported.</p>
     <input type="file" id="fileInput">
   </div>
 
@@ -378,8 +376,8 @@
     </div>
   </div>
   <footer>
-    <p>Compatible with the Feb 21, 2026 revision of the Encyclopedia achievement</p>
-    <p style="margin-top:0.5rem">Flag data from <a href="https://retroachievements.org/codenotes.php?g=10154" target="_blank">Paper Mario Code Notes</a> · Thanks to <a href="https://retroachievements.org/forums/topic/4701?comment=133026#133026" target="_blank">Lycanroc</a> and <a href="https://retroachievements.org/forums/topic/4701?comment=302175#302175" target="_blank">SiIverLeaf</a> for their detailed tattle lists</p>
+    <p>Compatible with the Feb 21, 2026 revision of the Encyclopedia achievement · <a href="https://github.com/josephrooks/Goombapedia" target="_blank">Source</a> · <a href="https://github.com/josephrooks/Goombapedia#credits" target="_blank">Credits</a></p>
+    <p style="margin-top:0.5rem">Flag data from <a href="https://retroachievements.org/codenotes.php?g=10154" target="_blank">Paper Mario Code Notes</a> · Tattle lists and research by <a href="https://retroachievements.org/forums/topic/4701?comment=133026#133026" target="_blank">Lycanroc</a>, <a href="https://retroachievements.org/forums/topic/4701?comment=302175#302175" target="_blank">SiIverLeaf</a>, <a href="https://retroachievements.org/forums/topic/4701?comment=362745#362745" target="_blank">Bubbajub</a>, hawkjames, and Chows</p>
   </footer>
 
 </div>
@@ -484,10 +482,10 @@ const CHAPTERS = [
     {name:'Anti Guy',addr:0xdbef1,bit:7,missable:true,note:'Can be skipped by giving him a Lemon Candy - do NOT do this if you want his Tattle. Second chance exists in Chapter 8 if the quiz is failed. Missable.'},
   ],bosses:[
     {name:'Big Lantern Ghost',addr:0xdbef0,bit:1,missable:true,note:'Missable - only encountered during Chapter 4.'},
+    {name:'General Guy',addr:0xdbef1,bit:2,missable:true,note:'Missable - Chapter 4 boss. Note: the light bulb cannot be tattled.'},
     {name:'Shy Squad',addr:0xdbef1,bit:0,missable:true,sub:true,note:'Spawns during the General Guy boss fight. Missable.'},
     {name:'Stilt Guy',addr:0xdbef2,bit:6,missable:true,sub:true,note:'Spawns during the General Guy boss fight. Missable.'},
     {name:'Shy Stack',addr:0xdbef2,bit:7,missable:true,sub:true,note:'Spawns during the General Guy boss fight. Missable.'},
-    {name:'General Guy',addr:0xdbef1,bit:2,missable:true,note:'Missable - Chapter 4 boss. Note: the light bulb cannot be tattled.'},
   ]},
   {name:'Chapter 5 - Jade Jungle / Mt. Lavalava',entries:[
     {name:'Jungle Fuzzy',addr:0xdbee1,bit:1},
@@ -554,7 +552,7 @@ const CHAPTERS = [
 function decompressState(buffer) {
   const bytes = new Uint8Array(buffer);
   const magic = String.fromCharCode(...bytes.slice(0,8));
-  if (!magic.startsWith('#RZIPv')) throw new Error('Not a RetroArch RZIP save state. Make sure you are uploading a .stateN file, not an .srm.');
+  if (!magic.startsWith('#RZIPv')) throw new Error('Not a recognized save state format. This tool accepts .stateN save state files only. .srm battery save files are not supported, since tattle data only exists in active memory.');
   const view = new DataView(buffer);
   const chunks = [];
   let pos = 0x14;
@@ -635,8 +633,10 @@ function renderEntry(e) {
   if (e.missable && !isOpt) extras += `<span class="missable-badge">⚠</span>`;
   if (e.note) extras += `<span class="note-icon" data-note="${e.note.replace(/"/g, '&quot;')}">?</span>`;
 
+  const arrowSpan = e.sub ? '<span class="sub-arrow">↳</span>' : '';
   return `<div class="enemy ${stateClass}${isBossClass}${isSubClass}">
     <span class="enemy-num">${entryCounter}.</span>
+    ${arrowSpan}
     <span class="enemy-mark">${mark}</span>
     <span class="enemy-name">${e.name}</span>
     ${extras}
