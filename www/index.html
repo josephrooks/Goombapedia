@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goombario's Encyclopedia - Paper Mario Tattle Checker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg:          #1a1008;
+    --surface:     #2a1c0e;
+    --border:      #5c3d1a;
+    --gold:        #f5c842;
+    --gold-dim:    #a8882a;
+    --red:         #e84040;
+    --green:       #52c45a;
+    --text:        #f0e0c0;
+    --muted:       #9a7a50;
+    --blue:        #5ab4f0;
+    --orange:      #f5903a;
+    --optional-text: #6a5030;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    background-image:
+      radial-gradient(ellipse at 20% 10%, rgba(245,200,66,0.07) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 90%, rgba(90,180,240,0.05) 0%, transparent 50%);
+  }
+
+  .container { max-width: 900px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 2.5rem; }
+  .star-row { color: var(--gold); font-size: 1.4rem; letter-spacing: 0.5rem; margin-bottom: 0.75rem; animation: twinkle 3s infinite; }
+  @keyframes twinkle { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  h1 { font-family: 'Press Start 2P', monospace; font-size: clamp(1rem, 3vw, 1.5rem); color: var(--gold); text-shadow: 3px 3px 0 #6b3d00, 0 0 30px rgba(245,200,66,0.4); line-height: 1.6; margin-bottom: 0.5rem; }
+  .subtitle { color: var(--muted); font-size: 0.95rem; font-weight: 600; }
+
+  /* Drop zone */
+  .drop-zone { border: 3px dashed var(--border); border-radius: 12px; padding: 3rem 2rem; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface); margin-bottom: 1.5rem; }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--gold); background: #331f0a; box-shadow: 0 0 30px rgba(245,200,66,0.15); }
+  .drop-zone.drag-over { transform: scale(1.01); }
+  .drop-icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
+  .drop-title { font-family: 'Press Start 2P', monospace; font-size: 0.7rem; color: var(--gold); margin-bottom: 0.75rem; line-height: 1.8; }
+  .drop-sub { color: var(--muted); font-size: 0.85rem; }
+  .drop-sub code { background: #1a0f04; border: 1px solid var(--border); padding: 0.15em 0.5em; border-radius: 4px; font-family: monospace; color: var(--blue); font-size: 0.8rem; }
+  #fileInput { display: none; }
+
+  #status { text-align: center; padding: 0.75rem; border-radius: 8px; font-weight: 700; font-size: 0.9rem; margin-bottom: 1.5rem; display: none; }
+  #status.loading { display: block; background: #1a2a3a; color: var(--blue); border: 1px solid var(--blue); }
+  #status.error   { display: block; background: #2a0a0a; color: var(--red); border: 1px solid var(--red); }
+
+  #infoBar.visible { display: flex; }
+
+  #progressWrap { display: none; margin-bottom: 2rem; }
+  #progressWrap.visible { display: block; }
+  .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
+  .progress-label { font-family: 'Press Start 2P', monospace; font-size: 0.6rem; color: var(--gold); }
+  .progress-count { font-size: 1.3rem; font-weight: 800; color: var(--gold); }
+  .progress-count .denom { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+  .progress-track { height: 18px; background: #0f0805; border-radius: 9px; border: 2px solid var(--border); overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #c87d00, var(--gold), #ffe77a); border-radius: 9px; transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1); position: relative; }
+  .progress-fill::after { content:''; position:absolute; top:3px; left:8px; right:8px; height:4px; background:rgba(255,255,255,0.3); border-radius:2px; }
+
+  .filter-row { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .filter-btn { background: var(--surface); border: 2px solid var(--border); color: var(--muted); border-radius: 8px; padding: 0.4rem 1rem; font-family: 'Nunito', sans-serif; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover { border-color: var(--gold-dim); color: var(--text); }
+  .filter-btn.active { background: var(--gold); border-color: var(--gold); color: #1a1008; }
+
+  /* Chapter groups */
+  .chapter { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 1rem; overflow: hidden; }
+  .chapter.hidden { display: none; }
+
+  .chapter-header { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.1rem; cursor: pointer; user-select: none; gap: 0.75rem; }
+  .chapter-header:hover { background: rgba(245,200,66,0.04); }
+  .chapter-title { font-family: 'Press Start 2P', monospace; font-size: 0.55rem; color: var(--gold-dim); line-height: 1.7; flex: 1; }
+  .chapter-badges { display: flex; gap: 0.4rem; align-items: center; flex-shrink: 0; }
+  .chapter-badge { font-size: 0.75rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 20px; white-space: nowrap; }
+  .badge-enemies { background: rgba(245,200,66,0.1); color: var(--gold); border: 1px solid rgba(245,200,66,0.3); }
+  .badge-enemies.complete { background: rgba(82,196,90,0.15); color: var(--green); border-color: rgba(82,196,90,0.3); }
+  .badge-bosses { background: rgba(232,64,64,0.1); color: #ff8080; border: 1px solid rgba(232,64,64,0.25); }
+  .badge-bosses.complete { background: rgba(82,196,90,0.15); color: var(--green); border-color: rgba(82,196,90,0.3); }
+  .chapter-chevron { color: var(--muted); font-size: 0.8rem; transition: transform 0.2s; }
+  .chapter.collapsed .chapter-chevron { transform: rotate(-90deg); }
+  .chapter.collapsed .chapter-body { display: none; }
+  .chapter-body { padding: 0 1rem 1rem; }
+
+  .section-label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0.75rem 0 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+  .section-label.boss-label { color: #c05050; border-color: #6b2020; }
+
+  .enemy-list { display: flex; flex-direction: column; gap: 0.15rem; }
+
+  .enemy { display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0.5rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600; transition: background 0.1s; position: relative; }
+  .enemy:hover { background: rgba(255,255,255,0.04); }
+
+  .enemy-num { font-size: 0.72rem; color: var(--muted); min-width: 2em; text-align: right; font-weight: 700; flex-shrink: 0; }
+  .enemy-mark { font-size: 0.85rem; flex-shrink: 0; }
+
+  /* States */
+  .enemy.done  .enemy-mark { color: var(--green); }
+  .enemy.done  .enemy-name { color: var(--text); }
+  .enemy.todo  .enemy-mark { color: var(--red); }
+  .enemy.todo  .enemy-name { color: var(--muted); }
+
+  /* Optional (not RA-required) */
+  .enemy.optional .enemy-num  { color: var(--optional-text); }
+  .enemy.optional .enemy-mark { color: var(--optional-text); }
+  .enemy.optional .enemy-name { color: var(--optional-text); font-style: italic; }
+  .enemy.optional.done .enemy-name { color: #9a7a50; }
+
+  /* Untracked (Fuzzipede) */
+  .enemy.untracked .enemy-mark { color: var(--optional-text); }
+  .enemy.untracked .enemy-name { color: #5a4a30; text-decoration: line-through; }
+
+  /* Boss row */
+  .enemy.boss { background: rgba(100,20,20,0.2); }
+  .enemy.boss:hover { background: rgba(100,20,20,0.35); }
+  .enemy.boss .enemy-num { color: #804040; }
+
+  /* Missable badge */
+  .missable-badge {
+    font-size: 0.6rem;
+    font-weight: 800;
+    background: rgba(245,100,40,0.15);
+    color: var(--orange);
+    border: 1px solid rgba(245,100,40,0.3);
+    border-radius: 4px;
+    padding: 0.1em 0.4em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Note icon with tooltip */
+  .note-icon {
+    font-size: 0.75rem;
+    color: var(--muted);
+    cursor: help;
+    flex-shrink: 0;
+  }
+
+  /* Global tooltip - fixed-positioned by JS so it's never clipped by flex rows */
+  #tooltip {
+    display: none;
+    position: fixed;
+    background: #0f0805;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: 'Nunito', sans-serif;
+    padding: 0.4em 0.75em;
+    border-radius: 6px;
+    max-width: 280px;
+    z-index: 9999;
+    pointer-events: none;
+    line-height: 1.5;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+  }
+
+
+  /* Sub-enemy (summoned during fight) */
+  .enemy.sub { padding-left: 2rem; }
+  .enemy.sub .enemy-num { color: #5a4030; }
+  .enemy.sub::before {
+    content: '↳';
+    color: var(--border);
+    font-size: 0.8rem;
+    position: absolute;
+    left: 0.75rem;
+  }
+
+  /* Legend */
+  .legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); margin-bottom: 1rem; }
+  .legend-item { display: flex; align-items: center; gap: 0.35rem; }
+
+  /* Instructions */
+  .instructions { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem; font-size: 0.88rem; }
+  .instructions h3 { font-family: 'Press Start 2P', monospace; font-size: 0.55rem; color: var(--gold); margin-bottom: 1rem; line-height: 1.8; }
+  .instructions ol { padding-left: 1.3rem; }
+  .instructions li { margin-bottom: 0.5rem; color: var(--muted); line-height: 1.5; }
+  .instructions li strong { color: var(--text); }
+  .instructions code { background: #1a0f04; border: 1px solid var(--border); padding: 0.1em 0.4em; border-radius: 4px; font-family: monospace; color: var(--blue); font-size: 0.85em; }
+
+
+  /* ── Static info sections ── */
+  .info-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  .info-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .info-section-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.55rem;
+    color: var(--gold-dim);
+    line-height: 1.7;
+  }
+  .info-section-count {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.2rem 0.6rem;
+  }
+  .info-section-body { padding: 0.5rem 1rem 0.75rem; }
+  .info-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.35rem 0.25rem;
+    border-radius: 6px;
+    font-size: 0.88rem;
+  }
+  .info-entry:hover { background: rgba(255,255,255,0.03); }
+  .info-mark {
+    color: var(--muted);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    width: 1em;
+    text-align: center;
+  }
+  .info-name { color: var(--text); font-weight: 700; font-size: 0.9rem; }
+  .info-text { color: var(--muted); line-height: 1.5; }
+  .info-text strong { color: var(--text); font-weight: 700; }
+
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+  footer a { color: var(--gold-dim); text-decoration: none; }
+  footer a:hover { color: var(--gold); }
+</style>
+</head>
+<body>
+<div id="tooltip"></div>
+<div class="container">
+
+  <header>
+    <div class="star-row">★ ★ ★ ★ ★ ★ ★</div>
+    <h1>Goombario's<br>Encyclopedia</h1>
+    <p class="subtitle">Paper Mario (N64) · Tattle Checker</p>
+  </header>
+
+  <div class="instructions">
+    <h3>How to use</h3>
+    <ol>
+      <li>In RetroArch with Paper Mario running and the save file you want to check loaded, open <strong>Quick Menu → Save State</strong> (or press your hotkey). You can do this even with RetroAchievements Hardcore Mode on; you just cannot <em>load</em> states in Hardcore Mode.</li>
+      <li>Find the <code>.stateN</code> file in your <code>states/</code> folder (e.g. <code>Paper Mario.state1</code>). Note: this tool reads save states only, not <code>.srm</code> save files.</li>
+      <li>Drop it below or click to browse. Your file never leaves your device.</li>
+    </ol>
+  </div>
+
+  <div class="drop-zone" id="dropZone">
+    <span class="drop-icon">🗂️</span>
+    <div class="drop-title">Drop save state here<br>or click to browse</div>
+    <p class="drop-sub">Accepts <code>.stateN</code> files from MupenPlusNext on RetroArch.<br>Other emulators may work but have not been tested.</p>
+    <input type="file" id="fileInput">
+  </div>
+
+  <div id="status"></div>
+
+  <div id="progressWrap">
+    <div class="progress-header">
+      <span class="progress-label">Encyclopedia Progress</span>
+      <span class="progress-count"><span id="tattledCount">0</span><span class="denom"> / 112</span></span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="filter-row" id="filterRow" style="display:none">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="missing">Missing only</button>
+    <button class="filter-btn" data-filter="done">Tattled only</button>
+  </div>
+
+  <div id="legend" style="display:none" class="legend">
+    <span class="legend-item">✓ <span style="color:var(--text)">Tattled</span></span>
+    <span class="legend-item">✗ <span>Not tattled</span></span>
+    <span class="legend-item" style="color:var(--optional-text)">✗ <em>Not required by RA</em></span>
+    <span class="legend-item"><span style="color:var(--orange);">⚠</span> <span>missable</span></span>
+    <span class="legend-item">? <span>hover for notes</span></span>
+  </div>
+
+  <div id="results"></div>
+
+
+  <!-- ── Static info sections ── -->
+  <div class="info-section" id="cantTattle">
+    <div class="info-section-header">
+      <span class="info-section-title">Cannot Be Tattled</span>
+      <span class="info-section-count">4 total</span>
+    </div>
+    <div class="info-section-body">
+      <div class="info-entry">
+        <span class="info-mark">✗</span>
+        <span class="info-name">Bowser (1)</span>
+        <span class="note-icon" data-note="First encounter during the intro in Peach's Castle. Fight is a cutscene; no party members available.">?</span>
+      </div>
+      <div class="info-entry">
+        <span class="info-mark">✗</span>
+        <span class="info-name">Jr. Troopa (1)</span>
+        <span class="note-icon" data-note="First encounter before Goombario joins the party.">?</span>
+      </div>
+      <div class="info-entry">
+        <span class="info-mark">✗</span>
+        <span class="info-name">Fuzzipede</span>
+        <span class="note-icon" data-note="Inside the whale. Watt is required for the fight due to darkness, which prevents Goombario from using Tattle.">?</span>
+      </div>
+      <div class="info-entry">
+        <span class="info-mark">✗</span>
+        <span class="info-name">Kammy Koopa</span>
+        <span class="note-icon" data-note="Final battles are fought by Twink and Princess Peach, not Mario.">?</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-section" id="doesntCount">
+    <div class="info-section-header">
+      <span class="info-section-title">Can Be Tattled, But Doesn't Count</span>
+      <span class="info-section-count">8 total</span>
+    </div>
+    <div class="info-section-body">
+      <div class="info-entry">
+        <span class="info-mark">-</span>
+        <span class="info-name">Goomnut Tree</span>
+        <span class="note-icon" data-note="Appears during the Goomba King battle.">?</span>
+      </div>
+      <div class="info-entry">
+        <span class="info-mark">-</span>
+        <span class="info-name">Magikoopa</span>
+        <span class="note-icon" data-note="The one encountered on the first return trip from Shooting Star Summit. Only the Bowser's Castle Magikoopas count.">?</span>
+      </div>
+      <div class="info-entry">
+        <span class="info-mark">-</span>
+        <span class="info-name">Koopa Bros. (stacked)</span>
+        <span class="note-icon" data-note="The stacked Koopa Bros. formation can be Tattled but the tattle doesn't register toward the achievement.">?</span>
+      </div>
+      <div class="info-entry">
+        <span class="info-mark">-</span>
+        <span class="info-name">Tubba Blubba (invincible)</span>
+        <span class="note-icon" data-note="When he is chasing you through the castle before his heart is retrieved. Only the final reunited battle counts.">?</span>
+      </div>
+      <div class="info-entry">
+        <span class="info-mark">-</span>
+        <span class="info-name">Lava Piranha (Phase 2)</span>
+        <span class="note-icon" data-note="Phase 1 and Phase 2 share the same flag. Tattling Phase 1 covers both; Phase 2 shows the health bar but counts as one tattle.">?</span>
+      </div>
+      <div class="info-entry">
+        <span class="info-mark">-</span>
+        <span class="info-name">Lava Bud (Phase 2)</span>
+        <span class="note-icon" data-note="Same situation as Lava Piranha - Phase 1 covers both phases.">?</span>
+      </div>
+      <div class="info-entry">
+        <span class="info-mark">-</span>
+        <span class="info-name">Gulpit's Rocks</span>
+        <span class="note-icon" data-note="The rocks Gulpit swallows and spits as attacks can be Tattled but do not count.">?</span>
+      </div>
+      <div class="info-entry">
+        <span class="info-mark">-</span>
+        <span class="info-name">Anti Guy Squad</span>
+        <span class="note-icon" data-note="The triple Anti Guy encounter in Bowser's Castle is not an intended encounter due to its difficulty and does not count toward the achievement.">?</span>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <p>Compatible with the Feb 21, 2026 revision of the Encyclopedia achievement</p>
+    <p style="margin-top:0.5rem">Flag data from <a href="https://retroachievements.org/codenotes.php?g=10154" target="_blank">Paper Mario Code Notes</a> · Thanks to <a href="https://retroachievements.org/forums/topic/4701?comment=133026#133026" target="_blank">Lycanroc</a> and <a href="https://retroachievements.org/forums/topic/4701?comment=302175#302175" target="_blank">SiIverLeaf</a> for their detailed tattle lists</p>
+  </footer>
+
+</div>
+
+<script>
+const RDRAM_BASE = 0x1CC;
+
+const AREA_NAMES = {
+  0x00:'Goomba Village',0x01:'Toad Town',0x02:'Toad Town Tunnels',0x03:'Whale Belly',
+  0x04:"Peach's Castle",0x05:'Shooting Star Summit',0x06:'Koopa Village',
+  0x07:'Koopa Bros. Fortress',0x08:'Mt. Rugged',0x09:'Dry Dry Outpost',
+  0x0A:'Dry Dry Desert',0x0B:'Dry Dry Ruins',0x0C:'Forever Forest',
+  0x0D:"Bow's Mansion",0x0E:'Gusty Gulch',0x0F:"Tubba's Castle",
+  0x10:"Shy Guy's Toy Box",0x11:'Jade Jungle',0x12:'Mt. Lavalava',
+  0x13:'Flower Fields',0x14:'Shiver City',0x15:'Crystal Palace',
+  0x16:"Bowser's Castle",0x17:"Peach's Castle (cutscenes)",
+};
+
+// Entry format: { name, addr, bit, isBoss, optional, untracked, missable, note }
+// optional = not required by RA achievement (still tracked if flag exists)
+// untracked = no RA flag at all (Fuzzipede)
+// missable = show orange MISSABLE badge
+// note = string shown on hover ℹ icon
+
+const CHAPTERS = [
+  {name:'Prologue',entries:[
+    {name:'Goomba',addr:0xdbede,bit:7},
+    {name:'Spiked Goomba',addr:0xdbedd,bit:1},
+    {name:'Paragoomba',addr:0xdbedd,bit:0},
+  ],bosses:[
+    {name:'Red Goomba',addr:0xdbeec,bit:1,note:'Can be Tattled in the first encounter together with Blue Goomba, or during the Goomba King battle. Prologue only.'},
+    {name:'Blue Goomba',addr:0xdbeec,bit:0,note:'Can be Tattled in the first encounter together with Red Goomba, or during the Goomba King battle. Prologue only.'},
+    {name:'Goomba King',addr:0xdbeec,bit:2,note:'Prologue only.'},
+  ]},
+  {name:'Toad Town - Dojo',entries:[
+  ],bosses:[
+    {name:'Lee',addr:0xdbeef,bit:6,missable:true,note:'Available after the first return trip from Shooting Star Summit, once the Magikoopa has been beaten. Missable if beaten without tattling.'},
+    {name:'Chan',addr:0xdbeef,bit:5,missable:true,note:'Available after beating Lee. Missable if beaten without tattling.'},
+    {name:'The Master (1)',addr:0xdbeef,bit:2,missable:true,note:'Available after beating Chan. Missable if beaten without tattling.'},
+    {name:'The Master (2)',addr:0xdbeef,bit:3,missable:true,note:'Available after beating The Master (1). Missable if beaten without tattling.'},
+    {name:'The Master (3)',addr:0xdbeef,bit:4,missable:true,note:'Available after beating The Master (2). Missable if beaten without tattling.'},
+  ]},
+  {name:'Toad Town Sewers',entries:[
+    {name:'Gloomba',addr:0xdbede,bit:2},
+    {name:'Spiked Gloomba',addr:0xdbede,bit:4},
+    {name:'Paragloomba',addr:0xdbede,bit:3},
+    {name:'Spike Top',addr:0xdbee1,bit:4,note:'Found in Toad Town Sewers once Lakilester joins. Some sources say this may be missable - Tattle at earliest convenience to be safe.'},
+  ],bosses:[
+    {name:'Blooper',addr:0xdbef6,bit:7,missable:true,note:'Missable if beaten without tattling.'},
+    {name:'Electro Blooper',addr:0xdbef5,bit:0,missable:true,note:'Accessed during Chapter 3. Missable if beaten without tattling.'},
+  ]},
+  {name:'Chapter 1 - Pleasant Path / Koopa Bros. Fortress',entries:[
+    {name:'Koopa Troopa',addr:0xdbedd,bit:3},
+    {name:'Paratroopa',addr:0xdbedd,bit:4},
+    {name:'Fuzzy',addr:0xdbedd,bit:2,missable:true,note:'Missable - only available before getting Kooper in Koopa Village.'},
+    {name:'Bob-omb',addr:0xdbedd,bit:5},
+    {name:'Bullet Bill',addr:0xdbedd,bit:7,missable:true,note:'Missable - only available in the single fight just before the Koopa Bros. boss room.'},
+    {name:'Bill Blaster',addr:0xdbedc,bit:0,missable:true,note:'Missable - only available in the single fight just before the Koopa Bros. boss room.'},
+  ],bosses:[
+    {name:'Bowser (fake)',addr:0xdbef3,bit:1,missable:true,note:'Missable - Chapter 1 ending boss, only opportunity.'},
+    {name:'Red Ninjakoopa',addr:0xdbef3,bit:4,missable:true,note:'Missable - Chapter 1 ending boss. You can Tattle the Koopa Stack but it does not count. Bring healing to survive the onslaught during Tattles. Tip: clear the no-items achievement first, then replay with items for easier Tattling.'},
+    {name:'Yellow Ninjakoopa',addr:0xdbef3,bit:6,missable:true,note:'Missable - Chapter 1 ending boss. See Red Ninjakoopa note.'},
+    {name:'Blue Ninjakoopa',addr:0xdbef3,bit:5,missable:true,note:'Missable - Chapter 1 ending boss. Listed as "Black Ninjakoopa" in some community guides. See Red Ninjakoopa note.'},
+    {name:'Green Ninjakoopa',addr:0xdbef3,bit:3,missable:true,note:'Missable - Chapter 1 ending boss. See Red Ninjakoopa note.'},
+    {name:'Jr. Troopa (2)',addr:0xdbeed,bit:1,missable:true,note:'First Jr. Troopa fight (Prologue) is before Goombario joins - not tattleable. Missable.'},
+  ]},
+  {name:'Chapter 2 - Dry Dry Desert / Ruins',entries:[
+    {name:'Monty Mole',addr:0xdbedc,bit:2},
+    {name:'Cleft',addr:0xdbedc,bit:1},
+    {name:'Pokey',addr:0xdbedc,bit:4},
+    {name:'Bandit',addr:0xdbedc,bit:3},
+    {name:'Buzzy Beetle',addr:0xdbedc,bit:7},
+    {name:'Swooper',addr:0xdbedc,bit:6},
+    {name:'Stone Chomp',addr:0xdbee3,bit:0,missable:true,note:'Available during three encounters when gathering the stones in Dry Dry Ruins. Missable after those fights.'},
+    {name:'Pokey Mummy',addr:0xdbedc,bit:5},
+  ],bosses:[
+    {name:'Buzzar',addr:0xdbef2,bit:0,missable:true,note:'Optional fight - skipped by picking "Luigi" when he asks your name. Pick one of the other two options to trigger the fight. Missable if defeated without tattling.'},
+    {name:'Tutankoopa',addr:0xdbef2,bit:1,missable:true,note:'Missable - Chapter 2 boss, only opportunity.'},
+    {name:'Chain Chomp',addr:0xdbef2,bit:2,missable:true,sub:true,note:'Summoned by Tutankoopa during the boss fight. Missable.'},
+  ]},
+  {name:"Chapter 3 - Forever Forest / Boo's Mansion / Gusty Gulch",entries:[
+    {name:'Bzzap!',addr:0xdbee0,bit:1,note:'Can be encountered by smashing a beehive in Forever Forest. Also found in Flower Fields (Chapter 6).'},
+    {name:'Piranha Plant',addr:0xdbee3,bit:1},
+    {name:'Forest Fuzzy',addr:0xdbee3,bit:2},
+    {name:'Hyper Goomba',addr:0xdbee3,bit:3},
+    {name:'Hyper Paragoomba',addr:0xdbee3,bit:4},
+    {name:'Hyper Cleft',addr:0xdbee3,bit:5},
+    {name:'Clubba',addr:0xdbee3,bit:6,missable:true,note:'After Chapter 3, all Clubbas in the castle are gone. Second opportunity: choose Clubba as Peach during the Chapter 3 intermission. Missable after that.'},
+  ],bosses:[
+    {name:"Tubba's Heart",addr:0xdbef2,bit:5,missable:true,note:'Missable - Chapter 3 boss fight.'},
+    {name:'Tubba Blubba',addr:0xdbef2,bit:3,missable:true,note:'Only tattleable during his final battle after reuniting with his heart. Tattle quickly - he starts with low HP. Missable.'},
+  ]},
+  {name:"Chapter 4 - Shy Guy's Toy Box",entries:[
+    {name:'Jr. Troopa (3)',addr:0xdbeed,bit:2,missable:true,note:'Encountered on return to Toad Town between chapters. Missable.'},
+    {name:'Dark Koopa',addr:0xdbede,bit:5},
+    {name:'Shy Guy',addr:0xdbee3,bit:7},
+    {name:'Groove Guy',addr:0xdbee2,bit:0,note:'Jester outfit variant of Shy Guy.'},
+    {name:'Sky Guy',addr:0xdbee2,bit:1,note:'Balloon-wearing variant of Shy Guy.'},
+    {name:'Spy Guy',addr:0xdbee2,bit:4,note:'Camo outfit variant of Shy Guy.'},
+    {name:'Medi Guy',addr:0xdbee2,bit:2,note:'Hovercraft with heart variant of Shy Guy.'},
+    {name:'Pyro Guy',addr:0xdbee2,bit:3,note:'Flame outfit variant of Shy Guy.'},
+    {name:'Anti Guy',addr:0xdbef1,bit:7,missable:true,note:'Can be skipped by giving him a Lemon Candy - do NOT do this if you want his Tattle. Second chance exists in Chapter 8 if the quiz is failed. Missable.'},
+  ],bosses:[
+    {name:'Big Lantern Ghost',addr:0xdbef0,bit:1,missable:true,note:'Missable - only encountered during Chapter 4.'},
+    {name:'Shy Squad',addr:0xdbef1,bit:0,missable:true,sub:true,note:'Spawns during the General Guy boss fight. Missable.'},
+    {name:'Stilt Guy',addr:0xdbef2,bit:6,missable:true,sub:true,note:'Spawns during the General Guy boss fight. Missable.'},
+    {name:'Shy Stack',addr:0xdbef2,bit:7,missable:true,sub:true,note:'Spawns during the General Guy boss fight. Missable.'},
+    {name:'General Guy',addr:0xdbef1,bit:2,missable:true,note:'Missable - Chapter 4 boss. Note: the light bulb cannot be tattled.'},
+  ]},
+  {name:'Chapter 5 - Jade Jungle / Mt. Lavalava',entries:[
+    {name:'Jungle Fuzzy',addr:0xdbee1,bit:1},
+    {name:'Spear Guy',addr:0xdbee1,bit:2},
+    {name:'Hurt Plant',addr:0xdbee2,bit:6},
+    {name:'M. Bush',addr:0xdbee2,bit:7},
+    {name:'Putrid Piranha',addr:0xdbee1,bit:5},
+    {name:'White Magikoopa',addr:0xdbeeb,bit:2,note:'Encountered with other enemies.'},
+    {name:'Lava Bubble',addr:0xdbee1,bit:3},
+    {name:'Red Magikoopa',addr:0xdbee4,bit:2,note:'Encountered with other enemies.'},
+  ],bosses:[
+    {name:'Lava Piranha',addr:0xdbef0,bit:3,missable:true,note:'The flag is shared between phases. Tattle during either Phase 1 or Phase 2 and it will count. Missable.'},
+    {name:'Lava Bud',addr:0xdbef0,bit:5,missable:true,note:'The flag is shared between phases. Tattle during either Phase 1 or Phase 2 and it will count. Missable.', sub:true},
+    {name:'Petit Piranha',addr:0xdbef0,bit:7,missable:true,sub:true,note:'Summoned by the Lava Buds in Phase 2. Cannot be summoned if the Buds are stunned or already defeated. Missable.'},
+    {name:'Jr. Troopa (4)',addr:0xdbeed,bit:3,missable:true,note:'Encountered during or after Chapter 5. Missable.'},
+  ]},
+  {name:'Chapter 6 - Flower Fields',entries:[
+    {name:'Super Blooper',addr:0xdbef5,bit:2,missable:true,note:'Can be fought any time - consider saving it to combine with the Chapter 7 trip to the sewers. Missable if beaten without tattling.'},
+    {name:'Blooper Baby',addr:0xdbef5,bit:4,sub:true,note:'Summoned by Super Blooper during the fight.'},
+    {name:'Crazee Dayzee',addr:0xdbee0,bit:2},
+    {name:'Monty Mole (Green)',addr:0xdbee0,bit:0,missable:true,note:'Encountered when helping Petunia - only appears in these battles. Called "Monty Mole" in-game but tracked separately from the desert one. Missable.'},
+    {name:'Ruff Puff',addr:0xdbee0,bit:4},
+    {name:'Amazy Dayzee',addr:0xdbee0,bit:3,note:'A Crazee Dayzee in the Yellow Flower Gate guard room has a chance to become one when the room loads.'},
+    {name:'Spiny',addr:0xdbee1,bit:7},
+    {name:'Lakitu',addr:0xdbee1,bit:6},
+    {name:'Green Magikoopa',addr:0xdbee4,bit:3},
+    {name:'Yellow Magikoopa',addr:0xdbee4,bit:5},
+  ],bosses:[
+    {name:'Kent C. Koopa',addr:0xdbef7,bit:1,missable:true,note:'Appears on Pleasant Path after Chapter 5. High defence - consider waiting for Ultra Boots. Missable if defeated without tattling.'},
+    {name:'Spike',addr:0xdbee0,bit:5,missable:true,note:'Missable.'},
+    {name:'Huff N. Puff',addr:0xdbef7,bit:2,missable:true,note:'Missable - Chapter 6 boss, only opportunity.'},
+    {name:'Tuff Puff',addr:0xdbef7,bit:3,sub:true,note:'Summoned by Huff N. Puff when hit by attacks.'},
+  ]},
+  {name:'Chapter 7 - Shiver City / Crystal Palace',entries:[
+    {name:'Gulpit',addr:0xdbee0,bit:6},
+    {name:'Frost Piranha',addr:0xdbee7,bit:1},
+    {name:'Duplighost',addr:0xdbee7,bit:3,note:'Fight after the Kooper switch puzzle by hitting real companions when they are copied, or encounter them in the Crystal Palace. Copied party member tattles do not count - tattle the original Duplighost.'},
+    {name:'White Clubba',addr:0xdbee7,bit:0},
+    {name:'Swoopula',addr:0xdbee7,bit:2},
+    {name:'Gray Magikoopa',addr:0xdbee4,bit:7},
+  ],bosses:[
+    {name:'Jr. Troopa (5)',addr:0xdbeed,bit:4,missable:true,note:'Missable.'},
+    {name:'Monstar',addr:0xdbef7,bit:4,missable:true,note:'Missable.'},
+    {name:'Crystal King',addr:0xdbef7,bit:5,missable:true,note:'Missable - Chapter 7 boss.'},
+    {name:'Crystal Bit',addr:0xdbef7,bit:7,missable:true,sub:true,note:'Summoned by Crystal King throughout the fight. Missable.'},
+  ]},
+  {name:"Chapter 8 - Bowser's Castle",entries:[
+    {name:'Ember',addr:0xdbee6,bit:5},
+    {name:'Koopatrol',addr:0xdbee5,bit:4},
+    {name:'Hammer Bros.',addr:0xdbee5,bit:3},
+    {name:'Magikoopa',addr:0xdbee4,bit:0,note:'The Magikoopa encountered on the first return from Shooting Star Summit does not count - only those in Bowser\'s Castle.'},
+    {name:'Bombshell Bill',addr:0xdbee5,bit:2},
+    {name:'Bombshell Bill Blaster',addr:0xdbee5,bit:1},
+    {name:'Dry Bones',addr:0xdbee6,bit:7},
+    {name:'Bony Beetle',addr:0xdbee6,bit:6,note:'Cannot be tattled in the dark areas - must be encountered later in the castle where there is light.'},
+  ],bosses:[
+    {name:'Jr. Troopa (6)',addr:0xdbeed,bit:5,missable:true,note:'Only one phase needs to be tattled. Missable.'},
+    {name:'Bowser (hallway)',addr:0xdbef6,bit:1,missable:true,note:'The hallway encounter before the final boss. Missable.'},
+    {name:'Bowser (Final)',addr:0xdbef6,bit:3,missable:true,note:'Final boss - last opportunity to tattle. Missable.'},
+  ]},
+];
+
+// ── Decompression ──────────────────────────────────────────────────────────
+function decompressState(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const magic = String.fromCharCode(...bytes.slice(0,8));
+  if (!magic.startsWith('#RZIPv')) throw new Error('Not a RetroArch RZIP save state. Make sure you are uploading a .stateN file, not an .srm.');
+  const view = new DataView(buffer);
+  const chunks = [];
+  let pos = 0x14;
+  while (pos < bytes.length - 4) {
+    const compLen = view.getUint32(pos, true);
+    pos += 4;
+    if (compLen === 0 || compLen > 0x400000 || pos + compLen > bytes.length) break;
+    try { chunks.push(pako.inflate(bytes.slice(pos, pos + compLen))); } catch(e) { break; }
+    pos += compLen;
+  }
+  if (!chunks.length) throw new Error('Could not decompress the save state.');
+  const total = chunks.reduce((n,c) => n+c.length, 0);
+  const full = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { full.set(c, off); off += c.length; }
+  return full;
+}
+
+function rdram(full, addr) {
+  const i = RDRAM_BASE + addr;
+  if (i >= full.length) throw new Error(`State too small for addr 0x${addr.toString(16)}`);
+  return full[i];
+}
+function readU16LE(full, addr) { return rdram(full, addr) | (rdram(full, addr+1) << 8); }
+
+// ── Analysis ───────────────────────────────────────────────────────────────
+function analyse(full) {
+  const loaded = readU16LE(full, 0xa094a);
+  if (loaded !== 0x0001) throw new Error(`This save state does not appear to be from an active Paper Mario game session (loaded flag = 0x${loaded.toString(16)}). Try saving the state while in-game.`);
+
+
+  let total = 0;
+  const chapResults = CHAPTERS.map(ch => {
+    const mapEntry = e => {
+      if (e.untracked) return { ...e, done: false };
+      const done = !!(rdram(full, e.addr) & (1 << e.bit));
+      if (done && !e.optional) total++;
+      return { ...e, done };
+    };
+    return {
+      name: ch.name,
+      entries: ch.entries.map(mapEntry),
+      bosses: ch.bosses.map(mapEntry),
+    };
+  });
+
+  return { chapResults, total, max: 112 };
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+let lastData = null;
+let currentFilter = 'all';
+let entryCounter = 0;
+
+
+function renderProgress({total, max}) {
+  document.getElementById('tattledCount').textContent = total;
+  document.getElementById('progressFill').style.width = `${(total/max*100).toFixed(1)}%`;
+  document.getElementById('progressWrap').classList.add('visible');
+}
+
+function isVisible(e, filter) {
+  if (e.untracked) return filter === 'all';
+  if (filter === 'missing') return !e.done;
+  if (filter === 'done')    return e.done;
+  return true;
+}
+
+function renderEntry(e) {
+  const isOpt = !!e.optional;
+  const isUntracked = !!e.untracked;
+  const stateClass = isUntracked ? 'untracked' : isOpt ? (e.done ? 'optional done' : 'optional') : (e.done ? 'done' : 'todo');
+  const mark = isUntracked ? '-' : e.done ? '✓' : '✗';
+  const isBossClass = e.isBoss ? ' boss' : '';
+  const isSubClass = e.sub ? ' sub' : '';
+
+  let extras = '';
+  if (e.missable && !isOpt) extras += `<span class="missable-badge">⚠</span>`;
+  if (e.note) extras += `<span class="note-icon" data-note="${e.note.replace(/"/g, '&quot;')}">?</span>`;
+
+  return `<div class="enemy ${stateClass}${isBossClass}${isSubClass}">
+    <span class="enemy-num">${entryCounter}.</span>
+    <span class="enemy-mark">${mark}</span>
+    <span class="enemy-name">${e.name}</span>
+    ${extras}
+  </div>`;
+}
+
+function renderResults({chapResults}, filter) {
+  entryCounter = 0;
+  const container = document.getElementById('results');
+  container.innerHTML = '';
+  document.getElementById('filterRow').style.display = 'flex';
+  document.getElementById('legend').style.display = 'flex';
+
+  for (const ch of chapResults) {
+    const requiredEntries = ch.entries.filter(e => !e.optional && !e.untracked);
+    const requiredBosses  = ch.bosses.filter(e => !e.optional && !e.untracked);
+    const eDone = requiredEntries.filter(e => e.done).length;
+    const bDone = requiredBosses.filter(e => e.done).length;
+
+    const hasVisible = [...ch.entries, ...ch.bosses].some(e => isVisible(e, filter));
+    if (!hasVisible) {
+      // Still need to advance counter for hidden entries
+      [...ch.entries, ...ch.bosses].forEach(() => entryCounter++);
+      continue;
+    }
+
+    const eBadgeClass = requiredEntries.length > 0 && eDone === requiredEntries.length ? 'badge-enemies complete' : 'badge-enemies';
+    const bBadgeClass = requiredBosses.length > 0 && bDone === requiredBosses.length ? 'badge-bosses complete' : 'badge-bosses';
+
+    // Pre-render entries so counter advances correctly
+    const savedCounter = entryCounter;
+    entryCounter = savedCounter;
+
+    // Render enemies section
+    const allEntryHtml = ch.entries.map(e => {
+      entryCounter++;
+      if (!isVisible(e, filter)) return '';
+      const saved = entryCounter;
+      const html = renderEntry({ ...e, isBoss: false });
+      entryCounter = saved;
+      return html;
+    }).join('');
+
+    const allBossHtml = ch.bosses.map(e => {
+      entryCounter++;
+      if (!isVisible(e, filter)) return '';
+      const saved = entryCounter;
+      const html = renderEntry({ ...e, isBoss: true });
+      entryCounter = saved;
+      return html;
+    }).join('');
+
+    // Redo with proper incrementing
+    entryCounter = savedCounter;
+    const entriesHtml = ch.entries.map(e => { entryCounter++; if (!isVisible(e, filter)) return ''; return renderEntry({...e, isBoss:false, _n: entryCounter}); }).join('');
+    const bossesHtml  = ch.bosses.map(e => { entryCounter++; if (!isVisible(e, filter)) return ''; return renderEntry({...e, isBoss:true,  _n: entryCounter}); }).join('');
+
+    const div = document.createElement('div');
+    div.className = 'chapter';
+
+    div.innerHTML = `
+      <div class="chapter-header">
+        <span class="chapter-title">${ch.name}</span>
+        <div class="chapter-badges">
+          ${requiredEntries.length > 0 ? `<span class="chapter-badge ${eBadgeClass}">${eDone}/${requiredEntries.length}</span>` : ''}
+          ${requiredBosses.length > 0  ? `<span class="chapter-badge ${bBadgeClass}">👑 ${bDone}/${requiredBosses.length}</span>` : ''}
+        </div>
+        <span class="chapter-chevron">▾</span>
+      </div>
+      <div class="chapter-body">
+        ${entriesHtml ? `<div class="enemy-list">${entriesHtml}</div>` : ''}
+        ${bossesHtml  ? `<div class="section-label boss-label">Bosses</div><div class="enemy-list">${bossesHtml}</div>` : ''}
+      </div>`;
+
+    div.querySelector('.chapter-header').addEventListener('click', () => div.classList.toggle('collapsed'));
+    container.appendChild(div);
+  }
+}
+
+// ── File handling ──────────────────────────────────────────────────────────
+async function processFile(file) {
+  const status = document.getElementById('status');
+  status.className = 'loading';
+  status.textContent = `Reading ${file.name}…`;
+  status.style.display = 'block';
+  try {
+    const full = decompressState(await file.arrayBuffer());
+    lastData = analyse(full);
+    status.style.display = 'none';
+    renderProgress(lastData);
+    renderResults(lastData, currentFilter);
+  } catch(e) {
+    status.className = 'error';
+    status.textContent = '⚠ ' + e.message;
+    status.style.display = 'block';
+  }
+}
+
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); });
+
+document.getElementById('filterRow').addEventListener('click', e => {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn || !lastData) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = btn.dataset.filter;
+  renderResults(lastData, currentFilter);
+});
+
+// ── Tooltip ────────────────────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+
+document.addEventListener('mouseover', e => {
+  const el = e.target.closest('.note-icon');
+  if (!el) return;
+  const note = el.getAttribute('data-note');
+  if (!note) return;
+  tooltip.textContent = note;
+  tooltip.style.display = 'block';
+  positionTooltip(e);
+});
+
+document.addEventListener('mousemove', e => {
+  if (tooltip.style.display === 'block') positionTooltip(e);
+});
+
+document.addEventListener('mouseout', e => {
+  if (e.target.closest('.note-icon')) tooltip.style.display = 'none';
+});
+
+function positionTooltip(e) {
+  const pad = 12;
+  const tw = tooltip.offsetWidth;
+  const th = tooltip.offsetHeight;
+  let x = e.clientX + pad;
+  let y = e.clientY + pad;
+  if (x + tw + pad > window.innerWidth)  x = e.clientX - tw - pad;
+  if (y + th + pad > window.innerHeight) y = e.clientY - th - pad;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top  = y + 'px';
+}
+</script>
+</body>
+</html>
