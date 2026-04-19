@@ -1,18 +1,29 @@
 # Goombario's Encyclopedia — Paper Mario Tattle Checker
 
-Tools for tracking Goombario tattle progress toward the [Encyclopedia](https://retroachievements.org/achievement/79592) RetroAchievements achievement in Paper Mario (N64). Compatible with the Feb 21, 2026 revision of the achievement.
+A tool for tracking Goombario tattle progress toward the [Encyclopedia](https://retroachievements.org/achievement/79592) RetroAchievements achievement in Paper Mario (N64).
+
+### Notes
+
+- Compatible with the Feb 21, 2026 revision of the achievement
+- Save states only — `.srm` "battery save" files are not supported (the tattle data only exists in active memory, not in the save file)
+- You can create save states while RetroAchievements Hardcore Mode is on; you just cannot load them in Hardcore Mode
+- Confirmed working with save states from MupenPlusNext on RetroArch; if you have save states from another emulator and want to help test compatibility, feel free to open an issue
 
 ---
 
 ## Web version
 
-A browser-based tool. Upload a RetroArch save state and see exactly which enemies you have and haven't tattled, mostly organized by the earliest chapter you can access them. No data is uploaded anywhere.
+[Link](https://josephrooks.github.io/Goombapedia/)
+
+Upload a RetroArch save state and see exactly which enemies you have and haven't tattled, mostly organized by the earliest chapter you can access them. No data is uploaded from your computer.
+
+You can also save the html file locally and it _should_ work fine.
 
 ### How to use
 
 1. In RetroArch with Paper Mario running and the save file you want to check loaded, open **Quick Menu → Save State** (or press your hotkey).
 2. Find the `.stateN` file in your `states/` folder and upload it to the tool.
-3. Works with MupenPlusNext on RetroArch. Other emulators may work but have not been tested. Save states only — `.srm` files are not supported.
+3. The page will show your overall progress, a chapter-by-chapter breakdown of every tracked enemy, and which ones you still need — with notes on missables and special conditions.
 
 ---
 
@@ -35,7 +46,7 @@ python3 tattle_checker.py "Paper Mario.state1" --missing-only
 
 **Tattle lists and research** from the RetroAchievements community. The following members compiled detailed lists or contributed key information in the [achievement comments](https://retroachievements.org/achievement/79592) and the [Encyclopedia forum thread](https://retroachievements.org/forums/topic/4701):
 
-- **Lycanroc** — [Forum post](https://retroachievements.org/forums/topic/4701?comment=133026#133026) · [Tattle list]()
+- **Lycanroc** — [Forum post](https://retroachievements.org/forums/topic/4701?comment=133026#133026)
 - **SiIverLeaf** — [Forum post](https://retroachievements.org/forums/topic/4701?comment=302175#302175) · [Tattle List (Google Sheets)](https://docs.google.com/spreadsheets/d/1OPmL7gzbdHWyk-J1AXRJtTXpU0pqxHzNAmle1tJ734g)
 - **Bubbajub** — [Forum post](https://retroachievements.org/forums/topic/4701?comment=362745#362745) · [Tattle List (Google Sheets)](https://docs.google.com/spreadsheets/d/1WW-y7pxvJXqks_NMnqZ5eVbCXGx9mP3jwOI2ZMA0oOo)
 - **hawkjames** — [Tattle List (Google Sheets)](https://docs.google.com/spreadsheets/d/1Ni2bjCvM0Dy0-02uZf8OmuOg6CfUtHyQznv-efYBuvk/edit?gid=0#gid=0)
